@@ -1,10 +1,25 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
+
+
+class ItemStatusBase(BaseModel):
+    status: str
+
+
+class ItemStatus(ItemStatusBase):
+    id: int
+
+    class Config:
+        orm_mode = True
 
 
 class ItemBase(BaseModel):
     name: str
     description: Optional[str] = None
+    ticket_url: Optional[str] = None
+    publication_url: Optional[str] = None
+    reported_user: Optional[str] = None
 
 
 class ItemCreate(ItemBase):
@@ -13,6 +28,9 @@ class ItemCreate(ItemBase):
 
 class Item(ItemBase):
     id: int
+    creation_date: datetime
+    status_id: int
+    status_rel: ItemStatus
 
     class Config:
         orm_mode = True
