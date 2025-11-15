@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from . import models, schemas, crud
 from .database import SessionLocal, engine, Base
 
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)  # Commented out: Using Alembic for migrations
 
-app = FastAPI(title="Servicios REST con FastAPI y PostgreSQL")
+app = FastAPI(title="Ticeting System API", version="1.0.0")
 
 
 def get_db():
@@ -42,12 +42,28 @@ def update_item(item_id: int, item: schemas.ItemCreate, db: Session = Depends(ge
     return db_item
 
 
+@app.patch("/items/{item_id}/status", response_model=schemas.Item)
+def update_item_status(item_id: int, status: str, db: Session = Depends(get_db)):
+    if status not in ["IN_PROGRESS", "RESOLVED"]:
+        raise HTTPException(status_code=400, detail="Invalid status. Must be 'IN_PROGRESS' or 'RESOLVED'")
+    
+    db_item = crud.update_item_status(db, item_id, status)
+    if db_item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return db_item
+
+
 @app.delete("/items/{item_id}", status_code=204)
 def delete_item(item_id: int, db: Session = Depends(get_db)):
     ok = crud.delete_item(db, item_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Item not found")
     return
+
+
+@app.get("/statuses/", response_model=list[schemas.ItemStatus])
+def get_statuses(db: Session = Depends(get_db)):
+    return crud.get_all_item_statuses(db)
 
 
 @app.get("/health")
