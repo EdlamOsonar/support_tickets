@@ -19,7 +19,9 @@ docker compose up --build
 docker compose up --build -d
 ```
 
-Después de arrancar, aplica las migraciones de base de datos:
+**Nota:** Las migraciones de base de datos se aplican automáticamente al iniciar el contenedor. El script de inicio espera a que PostgreSQL esté listo y luego ejecuta `alembic upgrade head` antes de iniciar el servidor.
+
+Si necesitas ejecutar las migraciones manualmente:
 
 ```sh
 docker compose exec web alembic upgrade head
@@ -34,6 +36,29 @@ docker compose down
 docker compose down -v
 ```
 
+#### Solución de problemas
+
+**Problema: "PostgreSQL Database directory appears to contain a database; Skipping initialization"**
+
+Si ves este mensaje y la base de datos está vacía (sin tablas), significa que el volumen de Docker tiene datos antiguos pero la base de datos no está inicializada correctamente. Soluciones:
+
+1. **Limpiar el volumen y reiniciar (recomendado):**
+   ```sh
+   docker compose down -v
+   docker compose up --build
+   ```
+
+2. **Forzar la aplicación de migraciones:**
+   ```sh
+   docker compose exec web alembic upgrade head
+   ```
+
+3. **Verificar el estado de las migraciones:**
+   ```sh
+   docker compose exec web alembic current
+   docker compose exec web alembic history
+   ```
+
 ### Opción 2: En local (sin Docker)
 
 #### Requisitos previos
@@ -46,13 +71,20 @@ docker compose down -v
 sudo apt update
 sudo apt install -y build-essential libpq-dev python3-dev
 ```
+En Fedora
+```sh
+sudo dnf update
+sudo dnf group install -y development-tools && sudo dnf install -y libpq-devel python3-devel
+```
+
+
 
 #### Configuración
 
 1. **Crear y activar entorno virtual:**
 
 ```sh
-python -m venv venv
+python -m venv .venv
 source venv/bin/activate  # Linux/Mac
 # o en Windows: venv\Scripts\activate
 ```
@@ -77,13 +109,26 @@ export ACCESS_TOKEN_EXPIRE_MINUTES="30"
 
 ```sh
 # Conectar a PostgreSQL y crear la base de datos
-psql -U postgres -c "CREATE DATABASE tickets_db;"
+# Usando Docker
+docker compose exec db psql -U postgres -c "CREATE DATABASE tickets_db;"
 ```
 
 5. **Aplicar migraciones:**
 
 ```sh
-alembic upgrade head
+docker compose exec web alembic upgrade head
+
+```
+Otros comandos alembic utiles
+```sh
+# Ver el estado actual de las migraciones
+docker compose exec web alembic current
+
+# Ver el historial de migraciones
+docker compose exec web alembic history
+
+# Crear una nueva migración
+docker compose exec web alembic revision -m "descripcion de la migracion"
 ```
 
 6. **Arrancar el servidor:**
@@ -97,6 +142,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 La API quedará accesible en `http://localhost:8000`.
 
 - **Swagger UI (docs interactivos):** `http://localhost:8000/docs`
+- **Api yml:** `http://localhost:8000/openapi.json`
 - **ReDoc:** `http://localhost:8000/redoc`
 - **Health check:** `http://localhost:8000/health`
 
@@ -243,3 +289,64 @@ docker compose exec web pytest -v
 # Asegúrate de tener el entorno virtual activado
 pytest -v
 ```
+
+### Una vez funcionando la aplicacion puedes verificar que todo esté correcto accediendo a:
+```sh
+API Docs: http://localhost:8000/docs
+Health Check: http://localhost:8000/health
+```
+
+## Diseño Técnico
+
+### Arquitectura Hexagonal (Puertos y Adaptadores)
+
+La aplicación está estructurada siguiendo el patrón de **Arquitectura Hexagonal** (también conocida como Arquitectura de Puertos y Adaptadores), que separa la lógica de negocio de los detalles de implementación técnica, facilitando el mantenimiento, la testabilidad y la escalabilidad.
+
+#### Estructura de Directorios
+
+#### Capas de la Arquitectura
+
+##### 1. Domain (Dominio)
+- **Responsabilidad**: Contiene la lógica de negocio pura, independiente de frameworks y tecnologías.
+- **Componentes**:
+  - **Entities**: Entidades de dominio que representan los conceptos del negocio (User, Item, ItemStatus).
+  - **Repositories (Puertos)**: Interfaces abstractas que definen los contratos para acceder a datos, sin depender de implementaciones concretas.
+
+##### 2. Application (Aplicación)
+- **Responsabilidad**: Orquesta los casos de uso y coordina las operaciones de negocio.
+- **Componentes**:
+  - **Use Cases**: Cada caso de uso encapsula una operación de negocio específica (crear item, autenticar usuario, etc.).
+  - **Services**: Servicios de aplicación que proporcionan funcionalidad compartida (autenticación, autorización).
+
+##### 3. Infrastructure (Infraestructura)
+- **Responsabilidad**: Implementa los adaptadores que conectan la aplicación con sistemas externos.
+- **Componentes**:
+  - **Database/Models**: Modelos SQLAlchemy que representan las tablas de la base de datos.
+  - **Repositories (Implementaciones)**: Implementaciones concretas de los repositorios que usan SQLAlchemy para persistir datos.
+  - **Mappers**: Funciones que convierten entre entidades de dominio y modelos de infraestructura.
+  - **Security**: Implementaciones de servicios de seguridad (JWT, hash de contraseñas).
+
+##### 4. Interfaces (Interfaces)
+- **Responsabilidad**: Adaptadores de entrada que exponen la aplicación al mundo exterior.
+- **Componentes**:
+  - **API/Routes**: Endpoints REST de FastAPI que reciben peticiones HTTP.
+  - **Schemas**: DTOs (Data Transfer Objects) de Pydantic para validación y serialización.
+  - **Converters**: Funciones que convierten entre entidades de dominio y schemas de la API.
+
+#### Flujo de Datos
+
+
+#### Principios Aplicados
+
+1. **Inversión de Dependencias**: El dominio define interfaces (puertos) que la infraestructura implementa (adaptadores).
+2. **Separación de Concerns**: Cada capa tiene una responsabilidad clara y bien definida.
+3. **Independencia del Framework**: El dominio no depende de FastAPI, SQLAlchemy u otras tecnologías.
+4. **Testabilidad**: Las interfaces permiten mockear fácilmente las dependencias en los tests.
+
+#### Beneficios
+
+- ✅ **Mantenibilidad**: Código organizado y fácil de navegar.
+- ✅ **Escalabilidad**: Fácil agregar nuevas funcionalidades sin afectar el código existente.
+- ✅ **Testabilidad**: Cada capa puede probarse de forma independiente.
+- ✅ **Flexibilidad**: Cambiar la base de datos o el framework web sin afectar la lógica de negocio.
+- ✅ **Claridad**: La estructura refleja claramente las responsabilidades de cada componente.

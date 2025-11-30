@@ -17,14 +17,14 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-from app.database import Base
-from app import models  # noqa: F401 (ensure models are imported)
+from app.infrastructure.database.base import Base
+from app.infrastructure.database.models import User, Item, ItemStatus  # noqa: F401 (ensure models are imported)
 
 target_metadata = Base.metadata
 
 
 def get_url():
-    return os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@db:5432/postgres')
+    return os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/postgres')
 
 
 def run_migrations_offline():

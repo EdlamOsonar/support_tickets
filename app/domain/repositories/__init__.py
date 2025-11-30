@@ -1,0 +1,2 @@
+"""Interfaces de repositorios (puertos)."""
+
