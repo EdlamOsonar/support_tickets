@@ -152,6 +152,75 @@ curl http://localhost:8000/health
 # Respuesta: {"status":"ok"}
 ```
 
+## Despliegue en Producción (VPS)
+
+Para desplegar la aplicación en un servidor VPS, sigue estos pasos:
+
+### Preparación Rápida
+
+1. **Subir el código al servidor:**
+   ```sh
+   # Opción A: Clonar desde Git
+   git clone <tu-repositorio> support-tickets
+   cd support-tickets
+   
+   # Opción B: Subir con SCP
+   scp -r . usuario@servidor:/opt/support-tickets
+   ```
+
+2. **Configurar variables de entorno:**
+   ```sh
+   cp env.example .env
+   nano .env  # Editar con valores de producción
+   ```
+   
+   **Variables críticas a cambiar:**
+   - `SECRET_KEY`: Generar con `openssl rand -hex 32`
+   - `POSTGRES_PASSWORD`: Contraseña segura para PostgreSQL
+   - `DATABASE_URL`: Ajustar según tu configuración
+
+3. **Construir y ejecutar:**
+   ```sh
+   docker compose -f docker-compose.prod.yml up -d --build
+   ```
+
+4. **Verificar que funciona:**
+   ```sh
+   curl http://localhost:8000/health
+   ```
+
+### Documentación Completa
+
+Para una guía detallada de despliegue, incluyendo:
+- Configuración de Nginx como reverse proxy
+- Configuración de SSL con Let's Encrypt
+- Backups de base de datos
+- Monitoreo y mantenimiento
+- Solución de problemas
+
+Consulta el archivo **[DEPLOY.md](DEPLOY.md)**.
+
+### Comandos Útiles de Producción
+
+```sh
+# Ver logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Reiniciar servicios
+docker compose -f docker-compose.prod.yml restart
+
+# Detener servicios
+docker compose -f docker-compose.prod.yml down
+
+# Actualizar aplicación
+docker compose -f docker-compose.prod.yml down
+git pull  # Si usas Git
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Backup de base de datos
+docker compose -f docker-compose.prod.yml exec db pg_dump -U postgres postgres > backup.sql
+```
+
 ## Autenticación y Autorización
 
 La API utiliza **JWT (JSON Web Tokens)** con OAuth2 Password Flow para autenticación.
