@@ -1,3 +1,4 @@
+"""Schemas de items/tickets."""
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -11,7 +12,7 @@ class ItemStatus(ItemStatusBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ItemBase(BaseModel):
@@ -33,4 +34,5 @@ class Item(ItemBase):
     status_rel: ItemStatus
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+

@@ -8,8 +8,9 @@ from sqlalchemy.orm import sessionmaker
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.database import Base, get_db
-from app.main import app
+from app.infrastructure.database.base import Base
+from app.infrastructure.database.session import get_db
+from app.interfaces.api.main import app
 
 
 @pytest.fixture(scope='session')
@@ -38,7 +39,7 @@ def client(db_session, monkeypatch):
         finally:
             pass
 
-    monkeypatch.setattr('app.main.get_db', override_get_db)
+    monkeypatch.setattr('app.infrastructure.database.session.get_db', override_get_db)
     from fastapi.testclient import TestClient
 
     with TestClient(app) as c:

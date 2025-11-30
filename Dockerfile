@@ -1,4 +1,4 @@
-FROM fedora:38
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -8,22 +8,22 @@ ENV PYTHONUNBUFFERED=1
 # Copiar requirements antes para aprovechar la cache de docker
 COPY requirements.txt .
 
-# Instalar Python y dependencias del sistema necesarias para compilar extensiones
+# Instalar dependencias del sistema necesarias para compilar extensiones
 # y para psycopg2; luego instalar dependencias Python y limpiar paquetes pesados.
-RUN dnf -y update \
-	&& dnf -y install --setopt=tsflags=nodocs \
-	   python3 \
-	   python3-pip \
-	   python3-devel \
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends \
 	   gcc \
-	   make \
-	   libpq-devel \
-	&& python3 -m pip install --upgrade pip setuptools wheel \
-	&& python3 -m pip install --no-cache-dir -r requirements.txt \
-	&& dnf -y remove gcc make \
-	&& dnf -y autoremove \
-	&& dnf clean all
+	   libpq-dev \
+	&& pip install --upgrade pip setuptools wheel \
+	&& pip install --no-cache-dir -r requirements.txt \
+	&& apt-get purge -y gcc \
+	&& apt-get autoremove -y \
+	&& apt-get clean \
+	&& rm -rf /var/lib/apt/lists/*
 
 COPY . .
 
-CMD ["python3", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Hacer el script ejecutable
+RUN chmod +x start.sh
+
+CMD ["./start.sh"]

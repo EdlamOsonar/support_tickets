@@ -1,19 +1,12 @@
+"""Modelo SQLAlchemy de Item."""
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from .database import Base
-
-
-class ItemStatus(Base):
-    __tablename__ = "items_status"
-
-    id = Column(Integer, primary_key=True, index=True)
-    status = Column(String(50), nullable=False, unique=True, index=True)
-
-    items = relationship("Item", back_populates="status_rel")
+from app.infrastructure.database.base import Base
 
 
 class Item(Base):
+    """Modelo de item/ticket."""
     __tablename__ = "items"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -26,3 +19,4 @@ class Item(Base):
     status_id = Column(Integer, ForeignKey("items_status.id"), nullable=False, default=1)
 
     status_rel = relationship("ItemStatus", back_populates="items")
+
